@@ -1,0 +1,149 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-07-31T00:00:00.000Z",
+  "__export_source": "medx-mock-sms-provider:psb-1",
+  "resources": [
+    {
+      "_id": "wrk_mock_sms",
+      "_type": "workspace",
+      "parentId": null,
+      "name": "medx-mock-sms-provider (PSB-1)",
+      "description": "Provider Protocol v1 — Mock SMS. Simulation via X-Simulation-Mode.",
+      "scope": "collection"
+    },
+    {
+      "_id": "env_mock_local",
+      "_type": "environment",
+      "parentId": "wrk_mock_sms",
+      "name": "local",
+      "data": {
+        "base_url": "http://localhost:8063",
+        "correlation_id": "insomnia-mock-sms"
+      }
+    },
+    {
+      "_id": "fld_ops",
+      "_type": "request_group",
+      "parentId": "wrk_mock_sms",
+      "name": "0. Ops",
+      "metaSortKey": -1000
+    },
+    {
+      "_id": "req_healthz",
+      "_type": "request",
+      "parentId": "fld_ops",
+      "name": "GET /healthz",
+      "method": "GET",
+      "url": "{{ _.base_url }}/healthz",
+      "metaSortKey": 0
+    },
+    {
+      "_id": "req_readyz",
+      "_type": "request",
+      "parentId": "fld_ops",
+      "name": "GET /readyz",
+      "method": "GET",
+      "url": "{{ _.base_url }}/readyz",
+      "metaSortKey": 1
+    },
+    {
+      "_id": "req_openapi",
+      "_type": "request",
+      "parentId": "fld_ops",
+      "name": "GET /openapi.json",
+      "method": "GET",
+      "url": "{{ _.base_url }}/openapi.json",
+      "metaSortKey": 2
+    },
+    {
+      "_id": "fld_provider",
+      "_type": "request_group",
+      "parentId": "wrk_mock_sms",
+      "name": "1. Provider Protocol v1",
+      "metaSortKey": 0
+    },
+    {
+      "_id": "req_manifest",
+      "_type": "request",
+      "parentId": "fld_provider",
+      "name": "GET /provider/v1/manifest",
+      "method": "GET",
+      "url": "{{ _.base_url }}/provider/v1/manifest",
+      "headers": [{ "name": "X-Correlation-ID", "value": "{{ _.correlation_id }}" }],
+      "metaSortKey": 0
+    },
+    {
+      "_id": "req_invoke_accepted",
+      "_type": "request",
+      "parentId": "fld_provider",
+      "name": "POST invocations (accepted)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/provider/v1/invocations",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Correlation-ID", "value": "{{ _.correlation_id }}" },
+        { "name": "X-Simulation-Mode", "value": "accepted" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"operation\": \"send-sms\",\n  \"input\": {\"to\": \"+15551212\", \"message\": \"hello\"}\n}"
+      },
+      "metaSortKey": 1
+    },
+    {
+      "_id": "req_invoke_rejected",
+      "_type": "request",
+      "parentId": "fld_provider",
+      "name": "POST invocations (rejected)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/provider/v1/invocations",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Correlation-ID", "value": "{{ _.correlation_id }}" },
+        { "name": "X-Simulation-Mode", "value": "rejected" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"operation\": \"send-sms\",\n  \"input\": {\"to\": \"+15551212\", \"message\": \"hello\"}\n}"
+      },
+      "metaSortKey": 2
+    },
+    {
+      "_id": "req_invoke_unavailable",
+      "_type": "request",
+      "parentId": "fld_provider",
+      "name": "POST invocations (unavailable)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/provider/v1/invocations",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Correlation-ID", "value": "{{ _.correlation_id }}" },
+        { "name": "X-Simulation-Mode", "value": "unavailable" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"operation\": \"send-sms\",\n  \"input\": {\"to\": \"+15551212\", \"message\": \"hello\"}\n}"
+      },
+      "metaSortKey": 3
+    },
+    {
+      "_id": "req_test",
+      "_type": "request",
+      "parentId": "fld_provider",
+      "name": "POST /provider/v1/test",
+      "method": "POST",
+      "url": "{{ _.base_url }}/provider/v1/test",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "X-Correlation-ID", "value": "{{ _.correlation_id }}" },
+        { "name": "X-Simulation-Mode", "value": "accepted" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"operation\": \"send-sms\",\n  \"input\": {\"to\": \"+15551212\", \"message\": \"design-time test\"}\n}"
+      },
+      "metaSortKey": 4
+    }
+  ]
+}
