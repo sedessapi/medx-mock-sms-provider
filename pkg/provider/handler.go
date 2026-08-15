@@ -13,16 +13,20 @@ const (
 	HeaderSimulationMode = "X-Simulation-Mode"
 	HeaderCorrelationID  = "X-Correlation-ID"
 
-	ModeAccepted     = "accepted"
-	ModeRejected     = "rejected"
-	ModeUnavailable  = "unavailable"
-	ModeTimeout      = "timeout"
-	ModeMalformed    = "malformed"
+	ModeAccepted    = "accepted"
+	ModeRejected    = "rejected"
+	ModeUnavailable = "unavailable"
+	ModeTimeout     = "timeout"
+	ModeMalformed   = "malformed"
 )
 
-type Handler struct{}
+type Handler struct {
+	live *SynermaxxProvider
+}
 
-func NewHandler() *Handler { return &Handler{} }
+func NewHandler(live *SynermaxxProvider) *Handler {
+	return &Handler{live: live}
+}
 
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/manifest", h.Manifest)
@@ -31,12 +35,18 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 }
 
 func (h *Handler) Manifest(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
+	out := gin.H{
 		"protocol":    "provider/v1",
 		"provider":    "mock-sms-provider",
 		"operations":  []string{"send-sms"},
 		"simulations": []string{ModeAccepted, ModeRejected, ModeUnavailable, ModeTimeout, ModeMalformed},
-	})
+	}
+	if h.live != nil {
+		out["provider"] = "synermaxx-sms-provider"
+		out["carrier"] = "synermaxx"
+		out["mode"] = "live"
+	}
+	c.JSON(http.StatusOK, out)
 }
 
 type invokeRequest struct {
@@ -76,15 +86,20 @@ func (h *Handler) handle(c *gin.Context, isTest bool) {
 		return
 	}
 
-	mode := strings.ToLower(strings.TrimSpace(c.GetHeader(HeaderSimulationMode)))
-	if mode == "" {
-		mode = ModeAccepted
-	}
 	corr := c.GetHeader(HeaderCorrelationID)
 	if corr == "" {
 		if v, ok := c.Get("correlation_id"); ok {
 			corr, _ = v.(string)
 		}
+	}
+
+	mode := strings.ToLower(strings.TrimSpace(c.GetHeader(HeaderSimulationMode)))
+	if mode == "" && h.live != nil {
+		h.sendLive(c, to, message, corr)
+		return
+	}
+	if mode == "" {
+		mode = ModeAccepted
 	}
 
 	switch mode {
@@ -140,4 +155,64 @@ func (h *Handler) handle(c *gin.Context, isTest bool) {
 			"detail": mode,
 		})
 	}
+}
+
+func (h *Handler) sendLive(c *gin.Context, to, message, corr string) {
+	mobile, err := NormalizePHMobile(to)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":  "invalid_input",
+			"detail": err.Error(),
+		})
+		return
+	}
+
+	result, err := h.live.Send(c.Request.Context(), mobile, message)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{
+			"outcome":        "provider_unavailable",
+			"provider_ref":   "",
+			"correlation_id": corr,
+			"detail":         gin.H{"carrier": "synermaxx", "error": err.Error()},
+		})
+		return
+	}
+
+	ref := strings.TrimSpace(result.ProviderMessageID)
+	if ref == "" {
+		ref = "synermaxx-" + uuid.NewString()
+	}
+
+	if !result.Accepted {
+		status := http.StatusOK
+		if result.ErrorCode == "http_error" {
+			status = http.StatusBadGateway
+		}
+		c.JSON(status, gin.H{
+			"outcome":        "rejected",
+			"provider_ref":   ref,
+			"correlation_id": corr,
+			"detail": gin.H{
+				"carrier":    "synermaxx",
+				"status":     result.ProviderStatus,
+				"mobilenum":  mobile,
+				"message":    message,
+				"error":      result.ErrorMessage,
+				"error_code": result.ErrorCode,
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"outcome":        "accepted",
+		"provider_ref":   ref,
+		"correlation_id": corr,
+		"detail": gin.H{
+			"carrier":   "synermaxx",
+			"status":    result.ProviderStatus,
+			"mobilenum": mobile,
+			"message":   message,
+		},
+	})
 }
