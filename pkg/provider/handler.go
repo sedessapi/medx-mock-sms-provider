@@ -38,7 +38,7 @@ func (h *Handler) Manifest(c *gin.Context) {
 	out := gin.H{
 		"protocol":    "provider/v1",
 		"provider":    "mock-sms-provider",
-		"operations":  []string{"send-sms"},
+		"operations":  []string{"send-sms", "ack-receipt"},
 		"simulations": []string{ModeAccepted, ModeRejected, ModeUnavailable, ModeTimeout, ModeMalformed},
 	}
 	if h.live != nil {
@@ -72,7 +72,7 @@ func (h *Handler) handle(c *gin.Context, isTest bool) {
 	if op == "" {
 		op = "send-sms"
 	}
-	if op != "send-sms" {
+	if op != "send-sms" && op != "ack-receipt" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported_operation", "detail": op})
 		return
 	}
